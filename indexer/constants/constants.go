@@ -6,12 +6,14 @@ import (
 
 const FOLDER_PATH = "../../enron_mail_20110402/maildir" //"C:/Users/kevin/Desktop/enron_mail_20110402/maildir"
 const DATE_FORMAT = "Mon, 2 Jan 2006 15:04:05 -0700 (MST)"
+const DATE_FORMAT2 = "Mon, 02 Jan 2006 15:04:05 -0700 (MST)"
 const SERVER = "http://localhost:4080"
 const ENDPOINT = "/api/_bulkv2"
 const ENDPOINT_INDEX = "/api/index"
 const USERNAME = "admin"
 const PASSWORD = "Complexpass#123"
-const TOTAL_EMAILS = 517425
+const TOTAL_EMAILS = 517424
+const FOLDER_PATH_TEST = "../../enron_mail_20110402/maildir/arnold-j"
 
 var IndexConfig = models.IndexRequestBody{
 	Name:        "email-indexer",

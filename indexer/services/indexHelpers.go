@@ -19,7 +19,7 @@ var HEADER_MAP = map[string]func(*models.Email, string){
 	"X-Folder:":                  assignToField("XFolder"),
 	"X-Origin:":                  assignToField("XOrigin"),
 	"X-FileName:":                assignToField("XFileName"),
-	"Date:":                      parseDate,
+	"Date:":                      ParseDate,
 	"From:":                      assignToField("From"),
 	"To:":                        appendToField("To"),
 	"Subject:":                   assignToField("Subject"),
@@ -30,7 +30,6 @@ var HEADER_MAP = map[string]func(*models.Email, string){
 
 func assignToField(field string) func(*models.Email, string) {
 	return func(email *models.Email, value string) {
-		// Removing extra spaces and assigning value to the field
 		value = RemoveSpaces(value)
 		v := reflect.ValueOf(email).Elem().FieldByName(field)
 		if v.IsValid() && v.CanSet() && v.Kind() == reflect.String {
@@ -41,7 +40,6 @@ func assignToField(field string) func(*models.Email, string) {
 
 func appendToField(field string) func(*models.Email, string) {
 	return func(email *models.Email, value string) {
-		// Removing extra spaces and appending value to the field
 		value = RemoveSpaces(value)
 		v := reflect.ValueOf(email).Elem().FieldByName(field)
 		if v.IsValid() && v.CanSet() && v.Kind() == reflect.String {
@@ -50,13 +48,22 @@ func appendToField(field string) func(*models.Email, string) {
 	}
 }
 
-func parseDate(email *models.Email, value string) {
-	dateStr := RemoveSpaces(value)
-	email.Date, _ = time.Parse(constants.DATE_FORMAT, dateStr)
-	email.DateSubEmail = dateStr
+func ParseDate(email *models.Email, value string) {
+	dateStr := RemoveSpaces(strings.TrimSpace(strings.TrimPrefix(value, "Date:")))
+
+	parsedDate, err := time.Parse(constants.DATE_FORMAT, dateStr)
+	if err != nil {
+		parsedDate, err = time.Parse(constants.DATE_FORMAT2, dateStr)
+		if err != nil {
+			// email.DateSubEmail = dateStr
+			return
+		}
+		email.Date = parsedDate
+		return
+	}
+	email.Date = parsedDate
 }
 
 func RemoveSpaces(str string) string {
-	value := strings.Join(strings.Fields(str), " ")
-	return value
+	return strings.Join(strings.Fields(str), " ")
 }
