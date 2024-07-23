@@ -3,80 +3,80 @@ package services
 import (
 	"bufio"
 	"bytes"
+	"email-indexer/constants"
+	"email-indexer/models"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
-	"email-indexer/constants"
-	"email-indexer/models"
+	"sync"
 )
 
-var totalEmails []models.Email
+var (
+	mu          sync.Mutex // Mutex to protect access to the totalEmails slice
+	totalEmails []models.Email
+	numEmails   int
+	client      = &http.Client{}
+	maxEmails   = 50000
+)
 
-func CreateZincIndex() {
+func CreateZincIndex() error {
 
+	url := constants.SERVER + constants.ENDPOINT_INDEX
 	jsonData, err := json.Marshal(constants.IndexConfig)
-
 	if err != nil {
-		log.Println("Error marshalling JSON:", err)
-		return
+		return fmt.Errorf("failed to marshal index config: %v", err)
 	}
 
-	//log.Println("JSON:", string(jsonData))
-
-	URL := constants.SERVER + constants.ENDPOINT_INDEX
-	req, reqError := http.NewRequest("POST", URL, bytes.NewBuffer(jsonData))
-
-	if reqError != nil {
-		log.Println(reqError)
-		return
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create new request: %v", err)
 	}
-
 	req.SetBasicAuth(constants.USERNAME, constants.PASSWORD)
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
-	res, resError := client.Do(req)
-	if resError != nil {
-		log.Println(resError)
-		return
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
+	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error al leer el cuerpo de la respuesta:", err)
-		return
+		return fmt.Errorf("failed to create index: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to create index, status: %s", resp.Status)
 	}
 
-	if res.StatusCode != http.StatusOK {
-		var errorResponse map[string]interface{}
-		err := json.Unmarshal(body, &errorResponse)
-		if err != nil {
-			log.Println("Error unmarshalling error response:", err)
-			log.Println("Error indexing Zinc:", string(body))
-			return
-		}
-
-		errorMessage, ok := errorResponse["error"].(string)
-		if !ok {
-			log.Println("Error indexing Zinc: respuesta de error no valida")
-			return
-		}
-		log.Println("Error indexing Zinc:", errorMessage)
-		return
-	}
-
-	fmt.Println("Zinc indexed successfully")
+	log.Println("Index created successfully")
+	return nil
 }
 
-func ReadEmail(path string) {
+// CheckFolder recorre el directorio y procesa los archivos utilizando concurrencia
+func CheckFolder(folderPath string, wg *sync.WaitGroup, fileChan chan<- string) {
+	defer wg.Done()
+
+	files, filErr := os.ReadDir(folderPath)
+	if filErr != nil {
+		log.Println("Error reading folder", filErr)
+		return
+	}
+
+	for _, file := range files {
+		pathToCheck := filepath.Join(folderPath, file.Name())
+		if file.IsDir() {
+			wg.Add(1)
+			go CheckFolder(pathToCheck, wg, fileChan)
+		} else {
+			fileChan <- pathToCheck
+		}
+	}
+
+}
+
+// ReadEmail procesa un archivo de correo electrónico
+func ReadEmail(path string, wg *sync.WaitGroup, emailChan chan<- models.Email) {
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -100,29 +100,8 @@ func ReadEmail(path string) {
 		log.Println("Error reading file:", err)
 	}
 
-	addEmail(&email)
-}
-
-func CheckFolder(folderPath string) {
-	if len(totalEmails) > 20000 {
-		return
-	}
-	fmt.Println("Checking folders")
-
-	files, filErr := os.ReadDir(folderPath)
-	if filErr != nil {
-		log.Println("Error reading folder", filErr)
-		return
-	}
-	for _, file := range files {
-		pathToCheck := filepath.Join(folderPath, file.Name())
-		if file.IsDir() {
-			CheckFolder(pathToCheck)
-		} else {
-			ReadEmail(pathToCheck)
-		}
-	}
-
+	//addEmail(&email)
+	emailChan <- email
 }
 
 func IndexEmails(emails []models.Email) {
@@ -134,7 +113,6 @@ func IndexEmails(emails []models.Email) {
 	}
 
 	jsonData, err := json.Marshal(body)
-	//log.Println(jsonData)
 	if err != nil {
 		log.Println("Error marshalling JSON:", err)
 		return
@@ -142,7 +120,6 @@ func IndexEmails(emails []models.Email) {
 
 	URL := constants.SERVER + constants.ENDPOINT
 	req, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonData))
-	//log.Println("Response:", req.Body)
 	if err != nil {
 		log.Println("Error creating request:", err)
 		return
@@ -151,7 +128,6 @@ func IndexEmails(emails []models.Email) {
 	req.SetBasicAuth(constants.USERNAME, constants.PASSWORD)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Error indexing emails:", err)
@@ -160,29 +136,111 @@ func IndexEmails(emails []models.Email) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Println("Error indexing email:", resp.Status)
+		log.Printf("Error indexing email: %s\n", resp.Status)
 		return
 	}
 	log.Println("Emails indexed successfully", resp.Status)
 }
 
-func ParseDate(email *models.Email, value string) {
-	dateStr := strings.TrimSpace(value)
-	parsedDate, err := time.Parse(constants.DATE_FORMAT, dateStr)
-	if err != nil {
-		log.Println("Error parsing date:", err)
+func addEmail(emailPointer *models.Email) {
+	mu.Lock()
+	totalEmails = append(totalEmails, *emailPointer)
+	mu.Unlock()
+
+	if len(totalEmails)%maxEmails == 0 {
+		log.Println("Emails:", len(totalEmails))
 	}
-	email.Date = parsedDate
-	email.DateSubEmail = dateStr
+}
+
+func ProcessEmails(folderPath string) {
+	var wg sync.WaitGroup
+	fileChan := make(chan string, 1500) // 1000 || 1500
+	emailChan := make(chan models.Email, 10000)
+	sem := make(chan struct{}, 1500)
+
+	go func() {
+		for path := range fileChan {
+			sem <- struct{}{}
+			wg.Add(1)
+			go func(path string) {
+				defer func() {
+					wg.Done()
+					<-sem
+				}()
+				ReadEmail(path, &wg, emailChan)
+			}(path)
+		}
+	}()
+
+	go func() {
+		var emails []models.Email
+		for email := range emailChan {
+			emails = append(emails, email)
+			if len(emails) >= maxEmails {
+				sem <- struct{}{}
+				emailsToSend := make([]models.Email, len(emails))
+				copy(emailsToSend, emails)
+				emails = []models.Email{}
+				wg.Add(1)
+				go func(emails []models.Email) {
+					defer func() {
+						wg.Done()
+						<-sem
+					}()
+					IndexEmails(emails)
+				}(emailsToSend)
+				numEmails += len(emailsToSend)
+				log.Println("Emails:", numEmails)
+			}
+		}
+
+		// Enviar correos electrónicos restantes
+		if len(emails) > 0 {
+			sem <- struct{}{}
+			emailsToSend := make([]models.Email, len(emails))
+			copy(emailsToSend, emails)
+			wg.Add(1)
+			go func(emails []models.Email) {
+				defer func() {
+					wg.Done()
+					<-sem
+				}()
+				IndexEmails(emails)
+				numEmails += len(emails)
+				log.Println("Emails:", numEmails)
+			}(emailsToSend)
+		}
+	}()
+
+	// Explore folder and send files to fileChan
+	wg.Add(1)
+	go CheckFolder(folderPath, &wg, fileChan)
+
+	// Wait for all
+	go func() {
+		wg.Wait()
+		close(fileChan)
+		close(emailChan)
+	}()
+
+	// Esperar a que todas las goroutines que procesan archivos terminen.
+	wg.Wait()
+
+	// if len(totalEmails) == constants.TOTAL_EMAILS {
+	// 	IndexEmails(totalEmails)
+	// }
+
+	// if len(totalEmails) > 0 {
+	// 	numEmails += len(totalEmails)
+	// 	IndexEmails(totalEmails)
+	// }
+
+	log.Println("All files processed")
+	log.Println("Total emails:", numEmails)
+
 }
 
 func ParseLine(email *models.Email, line string) {
-	if strings.Contains(line, "=======================================") {
-		return
-	}
-	// else if strings.Contains(line, "---------------------- Forwarded by") {
-	// 	return
-	// }
 
 	for prefix, action := range HEADER_MAP {
 		if strings.HasPrefix(line, prefix) {
@@ -192,13 +250,4 @@ func ParseLine(email *models.Email, line string) {
 	}
 
 	email.Body += line + "\n"
-}
-
-func addEmail(emailPointer *models.Email) {
-	//log.Println("Adding email to the list")
-	totalEmails = append(totalEmails, *emailPointer)
-	if len(totalEmails) == 20000 {
-		IndexEmails(totalEmails)
-	}
-
 }
