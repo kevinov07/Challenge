@@ -1,13 +1,13 @@
 <template>
-  <div class="flex flex-col gap-[20px] align-center justify-center">
-    <header class="w-[fit-content]">
-      <h1 class="flex gap-[5px] align-center justify-center ml-[20px] mt-[20px]">
-        <img class="h-[auto] max-h-[30px] mt-[5px]" :src="EmailIcon" alt="Email icon"/>
+  <div class="flex flex-col gap-[20px] px-[30px] py-[30px]">
+    <header class="w-full flex items-center justify-start">
+      <h1 class="flex gap-[5px] items-center text-[#16b648] text-2xl pl-12">
+        <img class="h-[auto] max-h-[30px]" :src="EmailIcon" alt="Email icon"/>
         <span class="text-[#16b648]">Search Email</span>
       </h1>
     </header>
-    <SearchBar @search="handleSearch"/>
-    <div  class="flex w-full">
+    <SearchBar class="w-full max-w-3xl mx-auto"  @search="handleSearch"/>
+    <div class="flex w-full">
       <div class="flex-1">
         <EmailTable :emails="emails" @selectEmail="selectEmail"/>
       </div>
