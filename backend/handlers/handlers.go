@@ -4,6 +4,7 @@ import (
 	"backend/services"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -17,18 +18,21 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page := r.URL.Query().Get("page")
-	if page == "" || page == "0" {
-		page = "20"
+	pageStr := chi.URLParam(r, "page")
+	page, err := strconv.Atoi(pageStr)
+
+	if err != nil || page <= 0 {
+		page = 20
 	}
 
 	query := fmt.Sprintf(`{
         "search_type": "match",
         "query": {
-            "term": "%s",
+            "term": "%s"
         },
+        "sort_fields": ["date"],
         "from": 0,
-        "max_results": %s,
+        "max_results": %d,
         "_source": []
     }`, term, page)
 
@@ -45,7 +49,6 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 
 func GetEmailHandler(w http.ResponseWriter, r *http.Request) {
 	emailId := chi.URLParam(r, "id")
-	fmt.Println(emailId)
 	if emailId == "" {
 		http.Error(w, "Email ID is required", http.StatusBadRequest)
 		return
