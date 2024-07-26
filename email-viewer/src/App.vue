@@ -1,19 +1,22 @@
 <template>
   <div class="flex flex-col gap-[20px] px-[30px] py-[30px]">
     <header class="w-full flex items-center justify-start">
-      <h1 class="flex gap-[5px] items-center text-[#16b648] text-2xl pl-12">
+      <h1 class="flex gap-[5px] items-center text-2xl pl-12">
         <img class="h-[auto] max-h-[30px]" :src="EmailIcon" alt="Email icon"/>
-        <span class="text-[#16b648]">Search Email</span>
+        <span>Search Email</span>
       </h1>
     </header>
     <SearchBar class="w-full max-w-3xl mx-auto"  @search="handleSearch"/>
-    <div class="flex w-full">
+    <div v-if="emails.length" class="flex w-full">
       <div class="flex-1">
         <EmailTable :emails="emails" @selectEmail="selectEmail"/>
       </div>
       <div class="flex-1 ml-[20px]">
         <EmailDetails :email="selectedEmail || null"/>
       </div>
+    </div>
+    <div v-else class="text-[#A0A0A0] flex align-center justify-center">
+      No emails found.
     </div>
   </div>
 </template>

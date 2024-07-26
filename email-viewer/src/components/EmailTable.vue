@@ -1,6 +1,6 @@
 <template>
 <div class="px-4 py-3 @container">
-  <div v-if="emails && emails.length" class="flex overflow-hidden rounded-xl border border-[#D5D6DD] bg-[#F9FAFA]">
+  <div class="flex overflow-hidden rounded-xl border border-[#D5D6DD] bg-[#F9FAFA]">
     <table class="w-full table-fixed">
       <thead>
         <tr class="bg-[#FFFFFF]">
@@ -39,9 +39,6 @@
       </tbody>
     </table>
   </div>
-  <div v-else class="flex align-center justify-center">
-    No emails found.
-  </div>
 </div>
 </template>
   
@@ -57,31 +54,5 @@ const emit = defineEmits<{
 const selectEmail = (email: Email) => {
   emit('selectEmail', email)
 };
-
   
-</script>
-  
-<style scoped>
-/* .email-table {
-  flex: 1;
-  margin: 20px;
-  overflow-x: auto;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-th, td {
-  padding: 10px;
-  border: 1px solid #ddd;
-  text-align: left;
-}
-th {
-  background-color: #f4f4f4;
-}
-tr:hover {
-  background-color: #f1f1f1;
-  cursor: pointer;
-} */
-</style>
-  
+</script>  
