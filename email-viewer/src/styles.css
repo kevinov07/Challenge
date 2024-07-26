@@ -1,0 +1,47 @@
+/* src/styles.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+* {
+    box-sizing: border-box;
+  }
+html, body {
+    /*font-family: Arial, sans-serif;*/
+    margin: 0;
+    padding: 0;
+    /* background-color: #066b7f; */
+    background-color: #24285d;
+    scroll-behavior: smooth;
+  }
+  
+header {
+  padding: 10px;
+  text-align: center;
+}
+
+h1, h2, h3, span {
+  margin: 0;
+  font-size: 30px;
+  font-family: "Playfair Display", serif;
+  color: #F0F0F0 /*#16b648 87CEEB #B0B0B0)  (#ADD8E6) #F0F0F0)*/
+}
+
+/* input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+-webkit-box-shadow: 0 0 0 30px #5b2cad inset !important;
+} */
+
+::-webkit-scrollbar {
+width: 0;
+}
+
+input {
+outline: none;
+border: none;
+}
+
+/*bg-[#0d1829]*/
