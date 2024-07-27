@@ -76,7 +76,7 @@ func CheckFolder(folderPath string, wg *sync.WaitGroup, fileChan chan<- string) 
 }
 
 // ReadEmail procesa un archivo de correo electrónico
-func ReadEmail(path string, wg *sync.WaitGroup, emailChan chan<- models.Email) {
+func ReadEmail(path string, wg *sync.WaitGroup) {
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -100,8 +100,7 @@ func ReadEmail(path string, wg *sync.WaitGroup, emailChan chan<- models.Email) {
 		log.Println("Error reading file:", err)
 	}
 
-	//addEmail(&email)
-	emailChan <- email
+	addEmail(&email)
 }
 
 func IndexEmails(emails []models.Email) {
@@ -154,9 +153,8 @@ func addEmail(emailPointer *models.Email) {
 
 func ProcessEmails(folderPath string) {
 	var wg sync.WaitGroup
-	fileChan := make(chan string, 1500) // 1000 || 1500
-	emailChan := make(chan models.Email, 10000)
-	sem := make(chan struct{}, 1500)
+	fileChan := make(chan string, 1000)
+	sem := make(chan struct{}, 1000)
 
 	go func() {
 		for path := range fileChan {
@@ -167,48 +165,8 @@ func ProcessEmails(folderPath string) {
 					wg.Done()
 					<-sem
 				}()
-				ReadEmail(path, &wg, emailChan)
+				ReadEmail(path, &wg)
 			}(path)
-		}
-	}()
-
-	go func() {
-		var emails []models.Email
-		for email := range emailChan {
-			emails = append(emails, email)
-			if len(emails) >= maxEmails {
-				sem <- struct{}{}
-				emailsToSend := make([]models.Email, len(emails))
-				copy(emailsToSend, emails)
-				emails = []models.Email{}
-				wg.Add(1)
-				go func(emails []models.Email) {
-					defer func() {
-						wg.Done()
-						<-sem
-					}()
-					IndexEmails(emails)
-				}(emailsToSend)
-				numEmails += len(emailsToSend)
-				log.Println("Emails:", numEmails)
-			}
-		}
-
-		// Enviar correos electrónicos restantes
-		if len(emails) > 0 {
-			sem <- struct{}{}
-			emailsToSend := make([]models.Email, len(emails))
-			copy(emailsToSend, emails)
-			wg.Add(1)
-			go func(emails []models.Email) {
-				defer func() {
-					wg.Done()
-					<-sem
-				}()
-				IndexEmails(emails)
-				numEmails += len(emails)
-				log.Println("Emails:", numEmails)
-			}(emailsToSend)
 		}
 	}()
 
@@ -220,20 +178,15 @@ func ProcessEmails(folderPath string) {
 	go func() {
 		wg.Wait()
 		close(fileChan)
-		close(emailChan)
 	}()
 
 	// Esperar a que todas las goroutines que procesan archivos terminen.
 	wg.Wait()
 
-	// if len(totalEmails) == constants.TOTAL_EMAILS {
-	// 	IndexEmails(totalEmails)
-	// }
-
-	// if len(totalEmails) > 0 {
-	// 	numEmails += len(totalEmails)
-	// 	IndexEmails(totalEmails)
-	// }
+	if len(totalEmails) == constants.TOTAL_EMAILS {
+		numEmails = len(totalEmails)
+		IndexEmails(totalEmails)
+	}
 
 	log.Println("All files processed")
 	log.Println("Total emails:", numEmails)

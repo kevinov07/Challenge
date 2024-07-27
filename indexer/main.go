@@ -13,11 +13,6 @@ import (
 func main() {
 	//services.CreateZincIndex()
 
-	// con 20000 emails tarda aprox 3 minutos
-
-	//con FOLDER_PATH_TEST tarda 1.3 segundos
-	//con FOLDER_PATH Indexing completed in 23m50.5626565s
-
 	//Habilitar el perfilado CPU
 	f, err := os.Create("cpu_profile.prof")
 	if err != nil {

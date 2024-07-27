@@ -55,7 +55,6 @@ func ParseDate(email *models.Email, value string) {
 	if err != nil {
 		parsedDate, err = time.Parse(constants.DATE_FORMAT2, dateStr)
 		if err != nil {
-			// email.DateSubEmail = dateStr
 			return
 		}
 		email.Date = parsedDate
