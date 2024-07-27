@@ -22,7 +22,7 @@ var IndexConfig = models.IndexRequestBody{
 	Mappings: models.Mappings{
 		Properties: models.EmailMappings{
 			MessageID:               PROPERTIES_VALUES,
-			Date:                    PROPERTIES_VALUES,
+			Date:                    PROPERTIES_DATE_VALUES,
 			DateSubEmail:            PROPERTIES_VALUES,
 			From:                    PROPERTIES_VALUES,
 			To:                      PROPERTIES_VALUES,
@@ -50,6 +50,15 @@ var PROPERTIES_VALUES = models.FieldProperties{
 	Index:          true,
 	Store:          false,
 	Sortable:       false,
+	Hightlightable: false,
+	Aggregatable:   false,
+}
+
+var PROPERTIES_DATE_VALUES = models.FieldProperties{
+	Type:           "date",
+	Index:          true,
+	Store:          false,
+	Sortable:       true,
 	Hightlightable: false,
 	Aggregatable:   false,
 }
