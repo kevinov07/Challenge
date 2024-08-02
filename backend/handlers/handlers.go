@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"backend/constants"
 	"backend/services"
 	"fmt"
 	"net/http"
@@ -25,16 +26,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 		page = 20
 	}
 
-	query := fmt.Sprintf(`{
-        "search_type": "match",
-        "query": {
-            "term": "%s"
-        },
-        "sort_fields": ["date"],
-        "from": 0,
-        "max_results": %d,
-        "_source": []
-    }`, term, page)
+	query := fmt.Sprintf(constants.SEARCH_QUERY, term, page)
 
 	body, StatusCode, err := services.SearchRequest(query)
 	if err != nil {
@@ -54,17 +46,7 @@ func GetEmailHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := fmt.Sprintf(`{
-		"search_type": "matchphrase",
-		"query": {
-			"term": "%s",
-			"field": "message_id"
-		},
-		"sort_fields": [],
-		"from": 0,
-		"max_results": 1,
-		"_source": []
-	}`, emailId)
+	query := fmt.Sprintf(constants.EMAIL_QUERY, emailId)
 
 	body, statusCode, err := services.SearchRequest(query)
 	if err != nil {
