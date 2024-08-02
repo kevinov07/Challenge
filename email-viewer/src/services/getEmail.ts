@@ -1,9 +1,10 @@
 import type { Response } from '../types/email';
+import { EMAIL_ENDPOINT, SERVER } from '../constants/constants';
 
 
 const getEmail = async (id: string) => {
     try {
-        const response = await fetch(`http://localhost:3000/email/${id}`, {
+        const response = await fetch(`${SERVER}${EMAIL_ENDPOINT}${id}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
