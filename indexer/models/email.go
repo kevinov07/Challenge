@@ -13,7 +13,6 @@ type Email struct {
 	From                    string    `json:"from"`
 	MessageID               string    `json:"message_id"`
 	MimeVersion             string    `json:"mime_version"`
-	Replies                 []string  `json:"replies"`
 	Sent                    time.Time `json:"sent"`
 	Subject                 string    `json:"subject"`
 	To                      string    `json:"to"`
