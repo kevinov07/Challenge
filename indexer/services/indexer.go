@@ -54,7 +54,7 @@ func CreateZincIndex() error {
 }
 
 // CheckFolder recorre el directorio y procesa los archivos utilizando concurrencia
-func CheckFolder(folderPath string, wg *sync.WaitGroup, fileChan chan<- string) {
+func CheckFolder(folderPath string, wg *sync.WaitGroup, fileChan chan<- string, sem chan struct{}) {
 	defer wg.Done()
 
 	files, filErr := os.ReadDir(folderPath)
@@ -67,9 +67,17 @@ func CheckFolder(folderPath string, wg *sync.WaitGroup, fileChan chan<- string) 
 		pathToCheck := filepath.Join(folderPath, file.Name())
 		if file.IsDir() {
 			wg.Add(1)
-			go CheckFolder(pathToCheck, wg, fileChan)
+			go CheckFolder(pathToCheck, wg, fileChan, sem)
 		} else {
-			fileChan <- pathToCheck
+			sem <- struct{}{}
+			wg.Add(1)
+			go func(path string) {
+				defer func() {
+					wg.Done()
+					<-sem
+				}()
+				ReadEmail(path, wg)
+			}(pathToCheck)
 		}
 	}
 
@@ -156,23 +164,23 @@ func ProcessEmails(folderPath string) {
 	fileChan := make(chan string, 1000)
 	sem := make(chan struct{}, 1000)
 
-	go func() {
-		for path := range fileChan {
-			sem <- struct{}{}
-			wg.Add(1)
-			go func(path string) {
-				defer func() {
-					wg.Done()
-					<-sem
-				}()
-				ReadEmail(path, &wg)
-			}(path)
-		}
-	}()
+	// go func() {
+	// 	for path := range fileChan {
+	// 		sem <- struct{}{}
+	// 		wg.Add(1)
+	// 		go func(path string) {
+	// 			defer func() {
+	// 				wg.Done()
+	// 				<-sem
+	// 			}()
+	// 			ReadEmail(path, &wg)
+	// 		}(path)
+	// 	}
+	// }()
 
 	// Explore folder and send files to fileChan
 	wg.Add(1)
-	go CheckFolder(folderPath, &wg, fileChan)
+	go CheckFolder(folderPath, &wg, fileChan, sem)
 
 	// Wait for all
 	go func() {
@@ -180,7 +188,7 @@ func ProcessEmails(folderPath string) {
 		close(fileChan)
 	}()
 
-	// Esperar a que todas las goroutines que procesan archivos terminen.
+	// Wait for all files to be processed
 	wg.Wait()
 
 	if len(totalEmails) == constants.TOTAL_EMAILS {
